@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/gocql/gocql"
+	"encoding/json"
 )
 
 type Counter int
@@ -20,7 +21,8 @@ func stringTypeOf(i interface{}) (string, error) {
 			elemVal := reflect.Indirect(reflect.New(reflect.TypeOf(i).Elem())).Interface()
 			ct := cassaType(elemVal)
 			if ct == gocql.TypeCustom {
-				return "", fmt.Errorf("Unsupported type %T", i)
+				ct = gocql.TypeVarchar
+				//return "", fmt.Errorf("Unsupported type %T", i)
 			}
 			return fmt.Sprintf("list<%v>", ct), nil
 		case reflect.Map:
@@ -36,9 +38,58 @@ func stringTypeOf(i interface{}) (string, error) {
 	}
 	ct := cassaType(i)
 	if ct == gocql.TypeCustom {
-		return "", fmt.Errorf("Unsupported type %T", i)
+		ct = gocql.TypeVarchar
+		// return "", fmt.Errorf("Unsupported type %T", i)
 	}
 	return cassaTypeToString(ct)
+}
+
+type structure struct {
+	A string
+        B int
+}
+
+func ProcessValue(i interface{}) (interface{}, error) {
+	if i == nil {
+		return nil, nil
+	}
+	_, isByteSlice := i.([]byte)
+	if !isByteSlice {
+		// Check if we found a higher kinded type
+		switch reflect.ValueOf(i).Kind() {
+		case reflect.Slice:
+			elemVal := reflect.Indirect(reflect.New(reflect.TypeOf(i).Elem())).Interface()
+			ct := cassaType(elemVal)
+			if ct == gocql.TypeCustom {
+				s := reflect.ValueOf(i)
+				result := make([]string, 0, s.Len())
+				for j := 0; j < s.Len(); j++ {
+					txt, err := json.Marshal(s.Index(j).Interface())
+					if err != nil {
+						return "", fmt.Errorf("Unsupported translation of value type %T", err)
+					}
+					result = append(result, string(txt))
+				}
+				return result, nil
+			}
+			return i, nil
+		case reflect.Map:
+			keyVal := reflect.Indirect(reflect.New(reflect.TypeOf(i).Key())).Interface()
+			elemVal := reflect.Indirect(reflect.New(reflect.TypeOf(i).Elem())).Interface()
+			keyCt := cassaType(keyVal)
+			elemCt := cassaType(elemVal)
+			if keyCt == gocql.TypeCustom || elemCt == gocql.TypeCustom {
+				return "", fmt.Errorf("Unsupported map key or value type %T", i)
+			}
+			return fmt.Sprintf("map<%v, %v>", keyCt, elemCt), nil
+		}
+	}
+	ct := cassaType(i)
+	if ct == gocql.TypeCustom {
+		res, err := json.Marshal(i)
+		return string(res), err
+	}
+	return i, nil
 }
 
 func cassaType(i interface{}) gocql.Type {
@@ -63,6 +114,20 @@ func cassaType(i interface{}) gocql.Type {
 		return gocql.TypeBlob
 	case Counter:
 		return gocql.TypeCounter
+	}
+	switch reflect.ValueOf(i).Kind() {
+	case reflect.Int, reflect.Int32:
+		return gocql.TypeInt
+	case reflect.Int64:
+		return gocql.TypeBigInt
+	case reflect.String:
+		return gocql.TypeVarchar
+	case reflect.Float32:
+		return gocql.TypeFloat
+	case reflect.Float64:
+		return gocql.TypeDouble
+	case reflect.Bool:
+		return gocql.TypeBoolean
 	}
 	return gocql.TypeCustom
 }

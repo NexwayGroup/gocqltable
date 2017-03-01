@@ -6,6 +6,7 @@ import (
 	r "reflect"
 	"strings"
 	"sync"
+	"encoding/json"
 )
 
 // StructToMap converts a struct to map. The object's default key string
@@ -41,15 +42,62 @@ func StructToMap(val interface{}) (map[string]interface{}, bool) {
 // MapToStruct converts a map to a struct. It is the inverse of the StructToMap
 // function. For details see StructToMap.
 func MapToStruct(m map[string]interface{}, struc interface{}) error {
+	//fmt.Printf("Input map: %+v\n", m)
+	//fmt.Printf("Input struc: %+v\n", struc)
 	val := r.Indirect(r.ValueOf(struc))
 	sinfo := getStructInfo(val)
+	//fmt.Printf("sinfo: %+v\n", sinfo)
 	for k, v := range m {
+		//fmt.Printf("k: %+v  v: %+v\n", k, v)
 		if info, ok := sinfo.FieldsMap[k]; ok {
+			//fmt.Printf("info: %+v\n", info)
 			structField := val.Field(info.Num)
-			if structField.Type().Name() == r.TypeOf(v).Name() {
+			//fmt.Printf("type struct: %q, %q, %q\n", structField.Type(), structField.Type().Name(), structField.Kind())
+			//fmt.Printf("type value: %q\n", r.TypeOf(v).Name())
+			//fmt.Printf("value: %+v\n", r.ValueOf(v))
+			if structField.Kind().String() == "slice" || r.TypeOf(v).Kind().String() == "slice" {
+				if structField.Type().Elem() == r.TypeOf(v).Elem() {
+					//fmt.Print("Slices of same type\n")
+					structField.Set(r.ValueOf(v))
+				} else if structField.Type().Elem().Kind().String() == r.TypeOf(v).Elem().Kind().String() {
+					//fmt.Print("Slices of same kind\n")
+					s := r.ValueOf(v)
+					result := r.MakeSlice(structField.Type(), 0, s.Len())
+					for j := 0; j < s.Len(); j++ {
+						result = r.Append(result, r.ValueOf(s.Index(j).Interface()).Convert(structField.Type().Elem()))
+					}
+					structField.Set(result)
+				} else if r.TypeOf(v).Elem().String() == "string" {
+					//fmt.Print("Slices of different kind\n")
+					stringList := v.([]string)
+					result := r.MakeSlice(structField.Type(), 0, len(stringList))
+					for _, str := range stringList {
+						tmp := r.New(structField.Type().Elem())
+						err := json.Unmarshal([]byte(str), tmp.Interface())
+						if err != nil {
+							//fmt.Printf("Unmarshal failed on: %q due to: %q!!!\n", str, err)
+							//return err
+							continue
+						}
+						result = r.Append(result, r.Indirect(tmp))
+					}
+					structField.Set(result)
+				}
+			} else if structField.Type().Name() == "" || r.TypeOf(v).Name() == "" {
+				fmt.Printf("WTF are these types???!!! %q %q\n", structField.Kind().String(), r.TypeOf(v).Kind().String())
+			} else if structField.Type().Name() == r.TypeOf(v).Name() {
+				//fmt.Print("Field set naturally!!!\n")
 				structField.Set(r.ValueOf(v))
+			} else if structField.Kind().String() == r.TypeOf(v).Name() {
+				//fmt.Print("Field set with convert !!!\n")
+				structField.Set(r.ValueOf(v).Convert(structField.Type()))
+			} else {
+				fmt.Print("Please handle these types !!!\n")
 			}
+		} else {
+			//fmt.Printf("field %q not found\n", k) TODO: in which situation do we reach this point? oO
 		}
+		//fmt.Printf("Check fill struc: %+v\n", struc)
 	}
 	return nil
 }
@@ -117,13 +165,13 @@ func getStructInfo(v r.Value) *structInfo {
 			info.Key = field.Name
 		}
 
-		if _, found = fieldsMap[info.Key]; found {
+		if _, found = fieldsMap[strings.ToLower(info.Key)]; found {
 			msg := fmt.Sprintf("Duplicated key '%s' in struct %s", info.Key, st.String())
 			panic(msg)
 		}
 
 		fieldsList = append(fieldsList, info)
-		fieldsMap[info.Key] = info
+		fieldsMap[strings.ToLower(info.Key)] = info
 	}
 	sinfo = &structInfo{
 		fieldsMap,
