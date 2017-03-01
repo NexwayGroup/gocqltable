@@ -6,7 +6,7 @@ import (
 
 	"github.com/gocql/gocql"
 
-	r "github.com/NexwayGroup/nx-dmp-enduser-unifier/cassandra/gocqltable/reflect"
+	r "github.com/NexwayGroup/gocqltable/reflect"
 )
 
 type TableInterface interface {

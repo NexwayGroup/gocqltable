@@ -9,8 +9,8 @@ import (
 	"reflect"
 	"time"
 
-	r "github.com/NexwayGroup/nx-dmp-enduser-unifier/cassandra/gocqltable/reflect"
-	"github.com/NexwayGroup/nx-dmp-enduser-unifier/cassandra/gocqltable"
+	r "github.com/NexwayGroup/gocqltable/reflect"
+	"github.com/NexwayGroup/gocqltable"
 )
 
 type RangeInterface interface {
