@@ -55,7 +55,7 @@ func MapToStruct(m map[string]interface{}, struc interface{}) error {
 			//fmt.Printf("type struct: %q, %q, %q\n", structField.Type(), structField.Type().Name(), structField.Kind())
 			//fmt.Printf("type value: %q\n", r.TypeOf(v).Name())
 			//fmt.Printf("value: %+v\n", r.ValueOf(v))
-			if structField.Kind().String() == "slice" || r.TypeOf(v).Kind().String() == "slice" {
+			if structField.Kind().String() == "slice" && r.TypeOf(v).Kind().String() == "slice" {
 				if structField.Type().Elem() == r.TypeOf(v).Elem() {
 					//fmt.Print("Slices of same type\n")
 					structField.Set(r.ValueOf(v))
@@ -84,7 +84,7 @@ func MapToStruct(m map[string]interface{}, struc interface{}) error {
 					structField.Set(result)
 				}
 			} else if structField.Type().Name() == "" || r.TypeOf(v).Name() == "" {
-				fmt.Printf("WTF are these types???!!! %q %q\n", structField.Kind().String(), r.TypeOf(v).Kind().String())
+				return fmt.Errorf("WTF are these types???!!! %q %q\n", structField.Kind().String(), r.TypeOf(v).Kind().String())
 			} else if structField.Type().Name() == r.TypeOf(v).Name() {
 				//fmt.Print("Field set naturally!!!\n")
 				structField.Set(r.ValueOf(v))
@@ -92,7 +92,7 @@ func MapToStruct(m map[string]interface{}, struc interface{}) error {
 				//fmt.Print("Field set with convert !!!\n")
 				structField.Set(r.ValueOf(v).Convert(structField.Type()))
 			} else {
-				fmt.Print("Please handle these types !!!\n")
+				return fmt.Errorf("Please handle these types: %s with %s\n", structField.Kind().String(), r.TypeOf(v).Kind().String())
 			}
 		} else {
 			//fmt.Printf("field %q not found\n", k) TODO: in which situation do we reach this point? oO

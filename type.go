@@ -21,8 +21,8 @@ func stringTypeOf(i interface{}) (string, error) {
 			elemVal := reflect.Indirect(reflect.New(reflect.TypeOf(i).Elem())).Interface()
 			ct := cassaType(elemVal)
 			if ct == gocql.TypeCustom {
+				// the typeCustom will be converted and stored as a json string so here it will be a list of json strings
 				ct = gocql.TypeVarchar
-				//return "", fmt.Errorf("Unsupported type %T", i)
 			}
 			return fmt.Sprintf("list<%v>", ct), nil
 		case reflect.Map:
@@ -38,17 +38,13 @@ func stringTypeOf(i interface{}) (string, error) {
 	}
 	ct := cassaType(i)
 	if ct == gocql.TypeCustom {
+		// the typeCustom will be converted and stored as a json string
 		ct = gocql.TypeVarchar
-		// return "", fmt.Errorf("Unsupported type %T", i)
 	}
 	return cassaTypeToString(ct)
 }
 
-type structure struct {
-	A string
-        B int
-}
-
+// ProcessValue take the input parameter and convert it to a json string or a slice of json strings
 func ProcessValue(i interface{}) (interface{}, error) {
 	if i == nil {
 		return nil, nil
@@ -81,7 +77,7 @@ func ProcessValue(i interface{}) (interface{}, error) {
 			if keyCt == gocql.TypeCustom || elemCt == gocql.TypeCustom {
 				return "", fmt.Errorf("Unsupported map key or value type %T", i)
 			}
-			return fmt.Sprintf("map<%v, %v>", keyCt, elemCt), nil
+			return i, nil
 		}
 	}
 	ct := cassaType(i)
@@ -115,6 +111,7 @@ func cassaType(i interface{}) gocql.Type {
 	case Counter:
 		return gocql.TypeCounter
 	}
+	// if the type is unknown, try to match its kind before declaring it as custom
 	switch reflect.ValueOf(i).Kind() {
 	case reflect.Int, reflect.Int32:
 		return gocql.TypeInt
