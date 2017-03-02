@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/kristoiv/gocqltable"
+	"github.com/NexwayGroup/gocqltable"
 	"github.com/gocql/gocql"
 )
 

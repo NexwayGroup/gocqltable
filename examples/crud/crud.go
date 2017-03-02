@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/kristoiv/gocqltable"
-	"github.com/kristoiv/gocqltable/recipes"
+	"github.com/NexwayGroup/gocqltable"
+	"github.com/NexwayGroup/gocqltable/recipes"
 	"github.com/gocql/gocql"
 )
 

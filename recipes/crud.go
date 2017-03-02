@@ -9,9 +9,8 @@ import (
 	"reflect"
 	"time"
 
-	"github.com/kristoiv/gocqltable"
-
-	r "github.com/kristoiv/gocqltable/reflect"
+	r "github.com/NexwayGroup/gocqltable/reflect"
+	"github.com/NexwayGroup/gocqltable"
 )
 
 type RangeInterface interface {
@@ -71,7 +70,11 @@ func (t CRUD) insert(row interface{}, ttl *time.Time) error {
 		// Append to insertion slices
 		fields = append(fields, strings.ToLower(fmt.Sprintf("%q", key)))
 		placeholders = append(placeholders, "?")
-		vals = append(vals, value)
+		converted, err := gocqltable.ProcessValue(value)
+		if err != nil {
+			return errors.New(fmt.Sprintf("Inserting row failed due to un marshallable value for key %q", key))
+		}
+		vals = append(vals, converted)
 	}
 
 	options := ""
